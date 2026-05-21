@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState } from 'react'
 import FileUpload from './components/FileUpload'
 import TransactionTable from './components/TransactionTable'
 import SavedStatements from './components/SavedStatements'
@@ -13,12 +13,6 @@ function App() {
   const [currentStatement, setCurrentStatement] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
-
-  const persistCurrentStatement = useCallback((updated) => {
-    setCurrentStatement(updated)
-    const all = saveStatement(updated)
-    setSavedStatements(all)
-  }, [])
 
   async function handleFileSelected(file) {
     setIsLoading(true)
@@ -94,18 +88,28 @@ function App() {
   }
 
   function handleAssignCompany(id, company) {
-    if (!currentStatement) return
-    persistCurrentStatement({
-      ...currentStatement,
-      companyAssignments: { ...currentStatement.companyAssignments, [id]: company },
+    setCurrentStatement((prev) => {
+      if (!prev) return prev
+      const updated = {
+        ...prev,
+        companyAssignments: { ...prev.companyAssignments, [id]: company },
+      }
+      const all = saveStatement(updated)
+      setSavedStatements(all)
+      return updated
     })
   }
 
   function handleReceiptMatched(transactionId, imageDataURL) {
-    if (!currentStatement) return
-    persistCurrentStatement({
-      ...currentStatement,
-      receiptImages: { ...currentStatement.receiptImages, [transactionId]: imageDataURL },
+    setCurrentStatement((prev) => {
+      if (!prev) return prev
+      const updated = {
+        ...prev,
+        receiptImages: { ...prev.receiptImages, [transactionId]: imageDataURL },
+      }
+      const all = saveStatement(updated)
+      setSavedStatements(all)
+      return updated
     })
   }
 

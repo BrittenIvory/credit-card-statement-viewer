@@ -17,7 +17,11 @@ export function saveStatement(statement) {
   } else {
     statements.unshift(statement)
   }
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(statements))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(statements))
+  } catch {
+    console.warn('localStorage quota exceeded — receipt images may not persist across sessions')
+  }
   return statements
 }
 
