@@ -4,7 +4,7 @@ import TransactionTable from './components/TransactionTable'
 import SavedStatements from './components/SavedStatements'
 import ReceiptUpload from './components/ReceiptUpload'
 import { extractTransactionsFromPDF } from './utils/pdfParser'
-import { loadStatements, updateStatementsList, persistStatements, deleteStatement, createStatementRecord } from './utils/storage'
+import { loadStatements, updateStatementsList, persistStatements, createStatementRecord } from './utils/storage'
 import './App.css'
 
 function App() {
@@ -53,8 +53,7 @@ function App() {
   }
 
   function handleDeleteSaved(id) {
-    const all = deleteStatement(id)
-    setSavedStatements(all)
+    setSavedStatements((prev) => prev.filter((s) => s.id !== id))
     if (currentStatement && currentStatement.id === id) {
       setCurrentStatement(null)
       setView('home')
