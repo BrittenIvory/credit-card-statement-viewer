@@ -264,6 +264,40 @@ thead tr {
   color: var(--color-debit);
 }
 
+.th-company {
+  width: 170px;
+}
+
+.td-company {
+  width: 170px;
+  padding: 8px 24px 8px 12px;
+}
+
+.company-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  background: var(--color-surface);
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.company-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.company-select--assigned {
+  color: var(--color-text);
+  font-weight: 500;
+  border-color: var(--color-primary);
+  background: var(--color-drop-bg);
+}
+
 .no-results {
   text-align: center;
   padding: 40px 24px !important;

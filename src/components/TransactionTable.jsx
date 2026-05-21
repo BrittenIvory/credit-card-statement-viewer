@@ -3,7 +3,19 @@ import './TransactionTable.css'
 
 const SORT_DIRECTIONS = { ASC: 'asc', DESC: 'desc' }
 
-export default function TransactionTable({ transactions, verifiedIds, onToggleVerified }) {
+const COMPANIES = [
+  'Milson',
+  'Agrituf',
+  'Stephenson',
+  'Hindale',
+  'Entrance',
+  'Novarlo',
+  'Arlo Hub',
+  'Arlo Performance',
+  'Arlo Partners',
+]
+
+export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, companyAssignments, onAssignCompany }) {
   const [nameFilter, setNameFilter] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
@@ -208,12 +220,13 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
               >
                 Amount{getSortIndicator('amount')}
               </th>
+              <th className="th-company">Company</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="4" className="no-results">
+                <td colSpan="5" className="no-results">
                   No transactions match your filters
                 </td>
               </tr>
@@ -243,6 +256,18 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
                       }`}
                     >
                       {formatAmount(t.amount)}
+                    </td>
+                    <td className="td-company" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        className={`company-select ${companyAssignments[t.id] ? 'company-select--assigned' : ''}`}
+                        value={companyAssignments[t.id] || ''}
+                        onChange={(e) => onAssignCompany(t.id, e.target.value)}
+                      >
+                        <option value="">Select...</option>
+                        {COMPANIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
                     </td>
                   </tr>
                 )

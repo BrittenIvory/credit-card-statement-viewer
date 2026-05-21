@@ -10,6 +10,7 @@ function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [verifiedIds, setVerifiedIds] = useState(new Set())
+  const [companyAssignments, setCompanyAssignments] = useState({})
 
   async function handleFileSelected(file) {
     setIsLoading(true)
@@ -47,11 +48,16 @@ function App() {
     })
   }
 
+  function handleAssignCompany(id, company) {
+    setCompanyAssignments((prev) => ({ ...prev, [id]: company }))
+  }
+
   function handleReset() {
     setTransactions([])
     setFileName('')
     setError(null)
     setVerifiedIds(new Set())
+    setCompanyAssignments({})
   }
 
   return (
@@ -89,6 +95,8 @@ function App() {
               transactions={transactions}
               verifiedIds={verifiedIds}
               onToggleVerified={handleToggleVerified}
+              companyAssignments={companyAssignments}
+              onAssignCompany={handleAssignCompany}
             />
           </div>
         )}
