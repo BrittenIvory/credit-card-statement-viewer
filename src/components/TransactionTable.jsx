@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
 import './TransactionTable.css'
 
 const SORT_DIRECTIONS = { ASC: 'asc', DESC: 'desc' }
@@ -15,7 +15,8 @@ const COMPANIES = [
   'Arlo Partners',
 ]
 
-export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, companyAssignments, onAssignCompany }) {
+export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, companyAssignments, onAssignCompany, receiptImages }) {
+  const [expandedReceipt, setExpandedReceipt] = useState(null)
   const [nameFilter, setNameFilter] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
@@ -221,12 +222,13 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
                 Amount{getSortIndicator('amount')}
               </th>
               <th className="th-company">Company</th>
+              <th className="th-receipt">Receipt</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="5" className="no-results">
+                <td colSpan="6" className="no-results">
                   No transactions match your filters
                 </td>
               </tr>
@@ -234,8 +236,8 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
               filtered.map((t) => {
                 const isVerified = verifiedIds.has(t.id)
                 return (
+                  <React.Fragment key={t.id}>
                   <tr
-                    key={t.id}
                     className={isVerified ? 'row--verified' : ''}
                     onClick={() => onToggleVerified(t.id)}
                   >
@@ -269,7 +271,30 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
                         ))}
                       </select>
                     </td>
+                    <td className="td-receipt" onClick={(e) => e.stopPropagation()}>
+                      {receiptImages[t.id] ? (
+                        <img
+                          src={receiptImages[t.id]}
+                          alt="Receipt"
+                          className="receipt-thumbnail"
+                          onClick={() => setExpandedReceipt(expandedReceipt === t.id ? null : t.id)}
+                        />
+                      ) : (
+                        <span className="receipt-none">&mdash;</span>
+                      )}
+                    </td>
                   </tr>
+                  {expandedReceipt === t.id && receiptImages[t.id] && (
+                    <tr className="receipt-expanded-row">
+                      <td colSpan="6">
+                        <div className="receipt-expanded">
+                          <img src={receiptImages[t.id]} alt="Receipt" className="receipt-full" />
+                          <button className="receipt-close" onClick={() => setExpandedReceipt(null)}>Close</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
                 )
               })
             )}
