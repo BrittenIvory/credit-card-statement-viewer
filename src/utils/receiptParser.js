@@ -85,7 +85,7 @@ function extractName(text) {
 }
 
 export function findBestMatch(receiptData, transactions) {
-  if (!receiptData.amount && !receiptData.date && !receiptData.name) {
+  if (receiptData.amount === null && !receiptData.date && !receiptData.name) {
     return null
   }
 

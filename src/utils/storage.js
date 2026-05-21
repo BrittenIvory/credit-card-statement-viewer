@@ -9,25 +9,28 @@ export function loadStatements() {
   }
 }
 
-export function saveStatement(statement) {
-  const statements = loadStatements()
-  const existing = statements.findIndex((s) => s.id === statement.id)
+export function updateStatementsList(statements, statement) {
+  const result = [...statements]
+  const existing = result.findIndex((s) => s.id === statement.id)
   if (existing >= 0) {
-    statements[existing] = statement
+    result[existing] = statement
   } else {
-    statements.unshift(statement)
+    result.unshift(statement)
   }
+  return result
+}
+
+export function persistStatements(statements) {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(statements))
   } catch {
     console.warn('localStorage quota exceeded — receipt images may not persist across sessions')
   }
-  return statements
 }
 
 export function deleteStatement(id) {
   const statements = loadStatements().filter((s) => s.id !== id)
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(statements))
+  persistStatements(statements)
   return statements
 }
 

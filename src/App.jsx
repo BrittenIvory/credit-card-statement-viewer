@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import FileUpload from './components/FileUpload'
 import TransactionTable from './components/TransactionTable'
 import SavedStatements from './components/SavedStatements'
 import ReceiptUpload from './components/ReceiptUpload'
 import { extractTransactionsFromPDF } from './utils/pdfParser'
-import { loadStatements, saveStatement, deleteStatement, createStatementRecord } from './utils/storage'
+import { loadStatements, updateStatementsList, persistStatements, deleteStatement, createStatementRecord } from './utils/storage'
 import './App.css'
 
 function App() {
@@ -13,6 +13,15 @@ function App() {
   const [currentStatement, setCurrentStatement] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const isInitialMount = useRef(true)
+
+  useEffect(() => {
+    if (isInitialMount.current) {
+      isInitialMount.current = false
+      return
+    }
+    persistStatements(savedStatements)
+  }, [savedStatements])
 
   async function handleFileSelected(file) {
     setIsLoading(true)
@@ -26,8 +35,7 @@ function App() {
         )
       } else {
         const record = createStatementRecord(file.name, parsed)
-        const all = saveStatement(record)
-        setSavedStatements(all)
+        setSavedStatements((prev) => updateStatementsList(prev, record))
         setCurrentStatement(record)
         setView('detail')
       }
@@ -53,25 +61,29 @@ function App() {
     }
   }
 
-  function handleToggleVerified(id) {
+  function updateCurrentStatement(updater) {
     setCurrentStatement((prev) => {
       if (!prev) return prev
+      const updated = updater(prev)
+      setSavedStatements((prevStatements) => updateStatementsList(prevStatements, updated))
+      return updated
+    })
+  }
+
+  function handleToggleVerified(id) {
+    updateCurrentStatement((prev) => {
       const verifiedSet = new Set(prev.verifiedIds)
       if (verifiedSet.has(id)) {
         verifiedSet.delete(id)
       } else {
         verifiedSet.add(id)
       }
-      const updated = { ...prev, verifiedIds: [...verifiedSet] }
-      const all = saveStatement(updated)
-      setSavedStatements(all)
-      return updated
+      return { ...prev, verifiedIds: [...verifiedSet] }
     })
   }
 
   function handleBatchToggleVerified(ids, shouldVerify) {
-    setCurrentStatement((prev) => {
-      if (!prev) return prev
+    updateCurrentStatement((prev) => {
       const verifiedSet = new Set(prev.verifiedIds)
       for (const id of ids) {
         if (shouldVerify) {
@@ -80,37 +92,22 @@ function App() {
           verifiedSet.delete(id)
         }
       }
-      const updated = { ...prev, verifiedIds: [...verifiedSet] }
-      const all = saveStatement(updated)
-      setSavedStatements(all)
-      return updated
+      return { ...prev, verifiedIds: [...verifiedSet] }
     })
   }
 
   function handleAssignCompany(id, company) {
-    setCurrentStatement((prev) => {
-      if (!prev) return prev
-      const updated = {
-        ...prev,
-        companyAssignments: { ...prev.companyAssignments, [id]: company },
-      }
-      const all = saveStatement(updated)
-      setSavedStatements(all)
-      return updated
-    })
+    updateCurrentStatement((prev) => ({
+      ...prev,
+      companyAssignments: { ...prev.companyAssignments, [id]: company },
+    }))
   }
 
   function handleReceiptMatched(transactionId, imageDataURL) {
-    setCurrentStatement((prev) => {
-      if (!prev) return prev
-      const updated = {
-        ...prev,
-        receiptImages: { ...prev.receiptImages, [transactionId]: imageDataURL },
-      }
-      const all = saveStatement(updated)
-      setSavedStatements(all)
-      return updated
-    })
+    updateCurrentStatement((prev) => ({
+      ...prev,
+      receiptImages: { ...prev.receiptImages, [transactionId]: imageDataURL },
+    }))
   }
 
   function handleBackToList() {
