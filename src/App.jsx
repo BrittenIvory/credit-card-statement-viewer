@@ -60,16 +60,36 @@ function App() {
   }
 
   function handleToggleVerified(id) {
-    if (!currentStatement) return
-    const verifiedSet = new Set(currentStatement.verifiedIds)
-    if (verifiedSet.has(id)) {
-      verifiedSet.delete(id)
-    } else {
-      verifiedSet.add(id)
-    }
-    persistCurrentStatement({
-      ...currentStatement,
-      verifiedIds: [...verifiedSet],
+    setCurrentStatement((prev) => {
+      if (!prev) return prev
+      const verifiedSet = new Set(prev.verifiedIds)
+      if (verifiedSet.has(id)) {
+        verifiedSet.delete(id)
+      } else {
+        verifiedSet.add(id)
+      }
+      const updated = { ...prev, verifiedIds: [...verifiedSet] }
+      const all = saveStatement(updated)
+      setSavedStatements(all)
+      return updated
+    })
+  }
+
+  function handleBatchToggleVerified(ids, shouldVerify) {
+    setCurrentStatement((prev) => {
+      if (!prev) return prev
+      const verifiedSet = new Set(prev.verifiedIds)
+      for (const id of ids) {
+        if (shouldVerify) {
+          verifiedSet.add(id)
+        } else {
+          verifiedSet.delete(id)
+        }
+      }
+      const updated = { ...prev, verifiedIds: [...verifiedSet] }
+      const all = saveStatement(updated)
+      setSavedStatements(all)
+      return updated
     })
   }
 
@@ -171,6 +191,7 @@ function App() {
               transactions={currentStatement.transactions}
               verifiedIds={verifiedSet}
               onToggleVerified={handleToggleVerified}
+              onBatchToggleVerified={handleBatchToggleVerified}
               companyAssignments={currentStatement.companyAssignments}
               onAssignCompany={handleAssignCompany}
               receiptImages={currentStatement.receiptImages}

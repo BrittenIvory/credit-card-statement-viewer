@@ -15,7 +15,7 @@ const COMPANIES = [
   'Arlo Partners',
 ]
 
-export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, companyAssignments, onAssignCompany, receiptImages }) {
+export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, onBatchToggleVerified, companyAssignments, onAssignCompany, receiptImages }) {
   const [expandedReceipt, setExpandedReceipt] = useState(null)
   const [nameFilter, setNameFilter] = useState('')
   const [minAmount, setMinAmount] = useState('')
@@ -104,11 +104,8 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
   const allFilteredVerified = filtered.length > 0 && filtered.every((t) => verifiedIds.has(t.id))
 
   function handleToggleAllFiltered() {
-    if (allFilteredVerified) {
-      filtered.forEach((t) => onToggleVerified(t.id))
-    } else {
-      filtered.filter((t) => !verifiedIds.has(t.id)).forEach((t) => onToggleVerified(t.id))
-    }
+    const ids = filtered.map((t) => t.id)
+    onBatchToggleVerified(ids, !allFilteredVerified)
   }
 
   return (

@@ -36,7 +36,8 @@ function extractAmount(text) {
 
   let bestAmount = null
   for (const pattern of patterns) {
-    const matches = [...text.matchAll(new RegExp(pattern, 'gi'))]
+    const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'
+    const matches = [...text.matchAll(new RegExp(pattern.source, flags))]
     for (const match of matches) {
       const val = parseFloat(match[1].replace(/,/g, ''))
       if (!isNaN(val) && (bestAmount === null || val > bestAmount)) {
@@ -151,9 +152,10 @@ function normalizeDate(dateStr) {
 }
 
 export function imageFileToDataURL(file) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const reader = new FileReader()
     reader.onload = (e) => resolve(e.target.result)
+    reader.onerror = () => reject(new Error('Failed to read file'))
     reader.readAsDataURL(file)
   })
 }
