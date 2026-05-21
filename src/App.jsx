@@ -9,6 +9,7 @@ function App() {
   const [fileName, setFileName] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [verifiedIds, setVerifiedIds] = useState(new Set())
 
   async function handleFileSelected(file) {
     setIsLoading(true)
@@ -34,10 +35,23 @@ function App() {
     }
   }
 
+  function handleToggleVerified(id) {
+    setVerifiedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) {
+        next.delete(id)
+      } else {
+        next.add(id)
+      }
+      return next
+    })
+  }
+
   function handleReset() {
     setTransactions([])
     setFileName('')
     setError(null)
+    setVerifiedIds(new Set())
   }
 
   return (
@@ -71,7 +85,11 @@ function App() {
                 Upload new statement
               </button>
             </div>
-            <TransactionTable transactions={transactions} />
+            <TransactionTable
+              transactions={transactions}
+              verifiedIds={verifiedIds}
+              onToggleVerified={handleToggleVerified}
+            />
           </div>
         )}
       </main>

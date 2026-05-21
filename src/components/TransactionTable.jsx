@@ -3,7 +3,7 @@ import './TransactionTable.css'
 
 const SORT_DIRECTIONS = { ASC: 'asc', DESC: 'desc' }
 
-export default function TransactionTable({ transactions }) {
+export default function TransactionTable({ transactions, verifiedIds, onToggleVerified }) {
   const [nameFilter, setNameFilter] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
@@ -73,7 +73,7 @@ export default function TransactionTable({ transactions }) {
       style: 'currency',
       currency: 'USD',
     })
-    if (amount < 0) return `−${formatted}`
+    if (amount < 0) return `\u2212${formatted}`
     return formatted
   }
 
@@ -86,6 +86,17 @@ export default function TransactionTable({ transactions }) {
   const hasActiveFilters = nameFilter || minAmount || maxAmount
 
   const totalAmount = filtered.reduce((sum, t) => sum + t.amount, 0)
+
+  const verifiedCount = transactions.filter((t) => verifiedIds.has(t.id)).length
+  const allFilteredVerified = filtered.length > 0 && filtered.every((t) => verifiedIds.has(t.id))
+
+  function handleToggleAllFiltered() {
+    if (allFilteredVerified) {
+      filtered.forEach((t) => onToggleVerified(t.id))
+    } else {
+      filtered.filter((t) => !verifiedIds.has(t.id)).forEach((t) => onToggleVerified(t.id))
+    }
+  }
 
   return (
     <div className="transaction-table">
@@ -142,15 +153,43 @@ export default function TransactionTable({ transactions }) {
         <span>
           Showing {filtered.length} of {transactions.length} transactions
         </span>
-        <span className={`table-info__total ${totalAmount < 0 ? 'amount--credit' : ''}`}>
-          Total: {formatAmount(totalAmount)}
-        </span>
+        <div className="table-info__right">
+          <span className="verification-progress">
+            <span
+              className={`verification-badge ${
+                verifiedCount === transactions.length
+                  ? 'verification-badge--done'
+                  : ''
+              }`}
+            >
+              {verifiedCount}/{transactions.length} verified
+            </span>
+          </span>
+          <span className={`table-info__total ${totalAmount < 0 ? 'amount--credit' : ''}`}>
+            Total: {formatAmount(totalAmount)}
+          </span>
+        </div>
       </div>
+
+      {verifiedCount === transactions.length && transactions.length > 0 && (
+        <div className="all-verified-banner">
+          All transactions have been verified!
+        </div>
+      )}
 
       <div className="table-wrapper">
         <table>
           <thead>
             <tr>
+              <th className="th-verified">
+                <input
+                  type="checkbox"
+                  className="verify-checkbox verify-checkbox--header"
+                  checked={allFilteredVerified && filtered.length > 0}
+                  onChange={handleToggleAllFiltered}
+                  title="Toggle all visible"
+                />
+              </th>
               <th
                 className="sortable"
                 onClick={() => handleSort('date')}
@@ -174,24 +213,40 @@ export default function TransactionTable({ transactions }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="3" className="no-results">
+                <td colSpan="4" className="no-results">
                   No transactions match your filters
                 </td>
               </tr>
             ) : (
-              filtered.map((t) => (
-                <tr key={t.id}>
-                  <td className="td-date">{t.date}</td>
-                  <td className="td-description">{t.description}</td>
-                  <td
-                    className={`td-amount ${
-                      t.amount < 0 ? 'amount--credit' : 'amount--debit'
-                    }`}
+              filtered.map((t) => {
+                const isVerified = verifiedIds.has(t.id)
+                return (
+                  <tr
+                    key={t.id}
+                    className={isVerified ? 'row--verified' : ''}
+                    onClick={() => onToggleVerified(t.id)}
                   >
-                    {formatAmount(t.amount)}
-                  </td>
-                </tr>
-              ))
+                    <td className="td-verified">
+                      <input
+                        type="checkbox"
+                        className="verify-checkbox"
+                        checked={isVerified}
+                        onChange={() => onToggleVerified(t.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                    <td className="td-date">{t.date}</td>
+                    <td className="td-description">{t.description}</td>
+                    <td
+                      className={`td-amount ${
+                        t.amount < 0 ? 'amount--credit' : 'amount--debit'
+                      }`}
+                    >
+                      {formatAmount(t.amount)}
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>
