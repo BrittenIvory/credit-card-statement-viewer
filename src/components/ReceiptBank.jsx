@@ -51,27 +51,12 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
 
       setPendingImage(dataURL)
 
-      if (receiptData.name || receiptData.amount !== null || receiptData.date) {
-        const receipt = {
-          id: Date.now().toString(),
-          image: dataURL,
-          name: receiptData.name || '',
-          amount: receiptData.amount,
-          date: receiptData.date || '',
-          rawText: receiptData.rawText,
-          addedAt: new Date().toISOString(),
-        }
-        onAddReceipt(selectedMonth, receipt)
-        setManualData({
-          name: receiptData.name || '',
-          amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
-          date: receiptData.date || '',
-        })
-        setShowManualEntry(true)
-      } else {
-        setManualData({ name: '', amount: '', date: '' })
-        setShowManualEntry(true)
-      }
+      setManualData({
+        name: receiptData.name || '',
+        amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
+        date: receiptData.date || '',
+      })
+      setShowManualEntry(true)
     } catch (err) {
       console.error('Receipt processing error:', err)
       setManualData({ name: '', amount: '', date: '' })
@@ -157,7 +142,7 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
       {showManualEntry && (
         <div className="receipt-bank__manual-form">
           <div className="receipt-bank__manual-title">
-            {pendingImage ? 'Verify or correct extracted receipt details:' : 'Enter receipt details:'}
+            {pendingImage ? 'Verify extracted details and save:' : 'Enter receipt details:'}
           </div>
           <div className="receipt-bank__manual-fields">
             <div className="receipt-bank__field">
@@ -191,7 +176,7 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
           </div>
           <div className="receipt-bank__manual-actions">
             <button className="receipt-bank__save-btn" onClick={handleManualSave}>
-              {pendingImage ? 'Update receipt' : 'Save receipt'}
+              Save receipt
             </button>
             <button className="receipt-bank__cancel-btn" onClick={() => {
               setShowManualEntry(false)

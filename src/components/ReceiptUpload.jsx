@@ -78,7 +78,7 @@ export default function ReceiptUpload({ transactions, onReceiptMatched }) {
           amount: manualData.amount ? parseFloat(manualData.amount) : null,
           date: manualData.date,
         },
-        matchedTransaction: transactions.find((t) => t.id === manualTransaction),
+        matchedTransaction: transactions.find((t) => String(t.id) === manualTransaction),
         score: 'manual',
       })
       setShowManual(false)
