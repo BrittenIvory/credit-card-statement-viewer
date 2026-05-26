@@ -1,7 +1,9 @@
 import Tesseract from 'tesseract.js'
 
 export async function extractReceiptData(imageFile) {
-  const { data } = await Tesseract.recognize(imageFile, 'eng')
+  const { data } = await Tesseract.recognize(imageFile, 'eng', {
+    tessedit_pageseg_mode: '6',
+  })
   const text = data.text
 
   const date = extractDate(text)
@@ -13,10 +15,14 @@ export async function extractReceiptData(imageFile) {
 
 function extractDate(text) {
   const patterns = [
-    /(\d{1,2}\/\d{1,2}\/\d{2,4})/,
-    /(\d{1,2}-\d{1,2}-\d{2,4})/,
-    /([A-Z][a-z]{2}\s+\d{1,2},?\s*\d{4})/,
-    /(\d{1,2}\s+[A-Z][a-z]{2,}\s+\d{4})/,
+    /(\d{1,2}\/\d{1,2}\/\d{4})/,
+    /(\d{1,2}\/\d{1,2}\/\d{2})\b/,
+    /(\d{1,2}-\d{1,2}-\d{4})/,
+    /(\d{1,2}-\d{1,2}-\d{2})\b/,
+    /(\d{4}-\d{2}-\d{2})/,
+    /([A-Z][a-z]{2,8}\s+\d{1,2},?\s*\d{4})/,
+    /(\d{1,2}\s+[A-Z][a-z]{2,8}\s+\d{4})/,
+    /(\d{1,2}\.\d{1,2}\.\d{2,4})/,
     /(\d{1,2}\/\d{1,2})/,
   ]
 
@@ -28,25 +34,45 @@ function extractDate(text) {
 }
 
 function extractAmount(text) {
-  const patterns = [
-    /(?:total|amount|due|charged?|balance)[:\s]*\$?([\d,]+\.\d{2})/i,
-    /\$\s*([\d,]+\.\d{2})/,
-    /([\d,]+\.\d{2})\s*$/m,
+  const lines = text.split('\n')
+
+  const totalPatterns = [
+    /(?:total|grand\s*total|amount\s*due|balance\s*due|total\s*due|total\s*charged?|net\s*total|amount\s*charged?)[:\s]*\$?\s*([\d,]+\.\d{2})/i,
+    /\$?\s*([\d,]+\.\d{2})\s*(?:total|due|charged)/i,
   ]
 
-  let bestAmount = null
-  for (const pattern of patterns) {
-    const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g'
-    const matches = [...text.matchAll(new RegExp(pattern.source, flags))]
-    for (const match of matches) {
-      const val = parseFloat(match[1].replace(/,/g, ''))
-      if (!isNaN(val) && (bestAmount === null || val > bestAmount)) {
-        bestAmount = val
+  for (const pattern of totalPatterns) {
+    for (const line of lines) {
+      const match = line.match(pattern)
+      if (match) {
+        const val = parseFloat(match[1].replace(/,/g, ''))
+        if (!isNaN(val) && val > 0) return val
       }
     }
-    if (bestAmount !== null) break
   }
-  return bestAmount
+
+  const dollarAmounts = []
+  const dollarPattern = /\$\s*([\d,]+\.\d{2})/g
+  let m
+  while ((m = dollarPattern.exec(text)) !== null) {
+    const val = parseFloat(m[1].replace(/,/g, ''))
+    if (!isNaN(val) && val > 0) dollarAmounts.push(val)
+  }
+  if (dollarAmounts.length > 0) {
+    return Math.max(...dollarAmounts)
+  }
+
+  const bareAmounts = []
+  const barePattern = /([\d,]+\.\d{2})\s*$/gm
+  while ((m = barePattern.exec(text)) !== null) {
+    const val = parseFloat(m[1].replace(/,/g, ''))
+    if (!isNaN(val) && val > 0) bareAmounts.push(val)
+  }
+  if (bareAmounts.length > 0) {
+    return Math.max(...bareAmounts)
+  }
+
+  return null
 }
 
 function extractName(text) {
@@ -57,6 +83,7 @@ function extractName(text) {
     /^\$/,
     /^total/i,
     /^subtotal/i,
+    /^sub\s*total/i,
     /^tax/i,
     /^change/i,
     /^cash/i,
@@ -65,6 +92,7 @@ function extractName(text) {
     /^visa/i,
     /^mastercard/i,
     /^amex/i,
+    /^discover/i,
     /^\d+\.\d{2}$/,
     /^#/,
     /^tel/i,
@@ -72,16 +100,38 @@ function extractName(text) {
     /^address/i,
     /^www\./i,
     /^http/i,
+    /^thank/i,
+    /^receipt/i,
+    /^order/i,
+    /^date/i,
+    /^time/i,
+    /^cashier/i,
+    /^server/i,
+    /^store/i,
+    /^qty/i,
+    /^item/i,
+    /^\d+$/,
+    /^[*=\-_]{3,}/,
+    /^ref/i,
+    /^trans/i,
+    /^auth/i,
+    /^card/i,
+    /^payment/i,
+    /^balance/i,
+    /^tip/i,
+    /^gratuity/i,
   ]
 
-  for (const line of lines.slice(0, 5)) {
-    const isSkip = skipPatterns.some((p) => p.test(line))
-    if (!isSkip && line.length >= 3 && line.length <= 60) {
-      return line.replace(/[^\w\s&'.-]/g, '').trim()
+  for (const line of lines.slice(0, 8)) {
+    const cleaned = line.replace(/[^\w\s&'.,\-#]/g, '').trim()
+    if (cleaned.length < 3 || cleaned.length > 60) continue
+    const isSkip = skipPatterns.some((p) => p.test(cleaned))
+    if (!isSkip) {
+      return cleaned
     }
   }
 
-  return lines[0] || null
+  return lines[0] ? lines[0].replace(/[^\w\s&'.-]/g, '').trim() : null
 }
 
 export function findBestMatch(receiptData, transactions) {
@@ -134,6 +184,11 @@ export function findBestMatch(receiptData, transactions) {
 function normalizeDate(dateStr) {
   if (!dateStr) return null
 
+  const isoMatch = dateStr.match(/(\d{4})-(\d{2})-(\d{2})/)
+  if (isoMatch) {
+    return `${isoMatch[2]}/${isoMatch[3]}`
+  }
+
   const slashMatch = dateStr.match(/(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?/)
   if (slashMatch) {
     const m = slashMatch[1].padStart(2, '0')
@@ -146,6 +201,29 @@ function normalizeDate(dateStr) {
     const m = dashMatch[1].padStart(2, '0')
     const d = dashMatch[2].padStart(2, '0')
     return `${m}/${d}`
+  }
+
+  const dotMatch = dateStr.match(/(\d{1,2})\.(\d{1,2})(?:\.(\d{2,4}))?/)
+  if (dotMatch) {
+    const m = dotMatch[1].padStart(2, '0')
+    const d = dotMatch[2].padStart(2, '0')
+    return `${m}/${d}`
+  }
+
+  const months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' }
+  const namedMatch = dateStr.match(/([A-Za-z]{3,9})\s+(\d{1,2})/i)
+  if (namedMatch) {
+    const monthKey = namedMatch[1].toLowerCase().slice(0, 3)
+    if (months[monthKey]) {
+      return `${months[monthKey]}/${namedMatch[2].padStart(2, '0')}`
+    }
+  }
+  const namedMatch2 = dateStr.match(/(\d{1,2})\s+([A-Za-z]{3,9})/i)
+  if (namedMatch2) {
+    const monthKey = namedMatch2[2].toLowerCase().slice(0, 3)
+    if (months[monthKey]) {
+      return `${months[monthKey]}/${namedMatch2[1].padStart(2, '0')}`
+    }
   }
 
   return dateStr.toLowerCase().replace(/,/g, '').trim()

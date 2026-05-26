@@ -121,6 +121,71 @@
   background: var(--color-primary-hover);
 }
 
+.home-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.receipt-bank-link {
+  padding: 8px 16px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.receipt-bank-link:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.auto-match-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  color: #166534;
+}
+
+.auto-match-banner__title {
+  font-weight: 600;
+  width: 100%;
+}
+
+.auto-match-banner__list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 12px;
+  width: 100%;
+}
+
+.auto-match-banner__dismiss {
+  padding: 4px 10px;
+  background: none;
+  border: 1px solid #166534;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #166534;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.auto-match-banner__dismiss:hover {
+  opacity: 1;
+}
+
 @media (max-width: 640px) {
   .app {
     padding: 24px 16px;

@@ -3,17 +3,22 @@ import FileUpload from './components/FileUpload'
 import TransactionTable from './components/TransactionTable'
 import SavedStatements from './components/SavedStatements'
 import ReceiptUpload from './components/ReceiptUpload'
+import ReceiptBank from './components/ReceiptBank'
 import { extractTransactionsFromPDF } from './utils/pdfParser'
-import { loadStatements, updateStatementsList, persistStatements, createStatementRecord } from './utils/storage'
+import { findBestMatch } from './utils/receiptParser'
+import { loadStatements, updateStatementsList, persistStatements, createStatementRecord, loadReceiptBank, persistReceiptBank } from './utils/storage'
 import './App.css'
 
 function App() {
   const [view, setView] = useState('home')
   const [savedStatements, setSavedStatements] = useState(() => loadStatements())
+  const [receiptBank, setReceiptBank] = useState(() => loadReceiptBank())
   const [currentStatement, setCurrentStatement] = useState(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
+  const [autoMatchResults, setAutoMatchResults] = useState(null)
   const isInitialMount = useRef(true)
+  const isInitialMountBank = useRef(true)
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -23,9 +28,55 @@ function App() {
     persistStatements(savedStatements)
   }, [savedStatements])
 
+  useEffect(() => {
+    if (isInitialMountBank.current) {
+      isInitialMountBank.current = false
+      return
+    }
+    persistReceiptBank(receiptBank)
+  }, [receiptBank])
+
+  function autoMatchReceipts(record) {
+    const allReceipts = Object.values(receiptBank).flat()
+    if (allReceipts.length === 0) return record
+
+    let updated = { ...record }
+    const matched = []
+
+    for (const receipt of allReceipts) {
+      const receiptData = {
+        name: receipt.name || null,
+        amount: receipt.amount,
+        date: receipt.date || null,
+      }
+      const match = findBestMatch(receiptData, record.transactions)
+      if (match && !updated.receiptImages[match.transaction.id]) {
+        updated = {
+          ...updated,
+          receiptImages: {
+            ...updated.receiptImages,
+            [match.transaction.id]: receipt.image,
+          },
+        }
+        matched.push({
+          receipt,
+          transaction: match.transaction,
+          score: match.score,
+        })
+      }
+    }
+
+    if (matched.length > 0) {
+      setAutoMatchResults(matched)
+    }
+
+    return updated
+  }
+
   async function handleFileSelected(file) {
     setIsLoading(true)
     setError(null)
+    setAutoMatchResults(null)
 
     try {
       const parsed = await extractTransactionsFromPDF(file)
@@ -34,7 +85,8 @@ function App() {
           'No transactions found in this PDF. Make sure it is a credit card statement with dates and amounts.'
         )
       } else {
-        const record = createStatementRecord(file.name, parsed)
+        let record = createStatementRecord(file.name, parsed)
+        record = autoMatchReceipts(record)
         setSavedStatements((prev) => updateStatementsList(prev, record))
         setCurrentStatement(record)
         setView('detail')
@@ -49,6 +101,7 @@ function App() {
 
   function handleSelectSaved(statement) {
     setCurrentStatement(statement)
+    setAutoMatchResults(null)
     setView('detail')
   }
 
@@ -109,8 +162,33 @@ function App() {
     }))
   }
 
+  function handleAddReceiptToBank(month, receipt) {
+    setReceiptBank((prev) => {
+      const existing = prev[month] || []
+      const updated = existing.find((r) => r.id === receipt.id)
+        ? existing.map((r) => (r.id === receipt.id ? receipt : r))
+        : [...existing, receipt]
+      return { ...prev, [month]: updated }
+    })
+  }
+
+  function handleDeleteReceiptFromBank(month, receiptId) {
+    setReceiptBank((prev) => {
+      const existing = prev[month] || []
+      const updated = existing.filter((r) => r.id !== receiptId)
+      const result = { ...prev }
+      if (updated.length === 0) {
+        delete result[month]
+      } else {
+        result[month] = updated
+      }
+      return result
+    })
+  }
+
   function handleBackToList() {
     setCurrentStatement(null)
+    setAutoMatchResults(null)
     setView('home')
     setError(null)
   }
@@ -120,6 +198,12 @@ function App() {
     setError(null)
   }
 
+  function handleShowReceiptBank() {
+    setView('receipt-bank')
+    setError(null)
+  }
+
+  const receiptBankCount = Object.values(receiptBank).reduce((sum, arr) => sum + arr.length, 0)
   const verifiedSet = currentStatement ? new Set(currentStatement.verifiedIds) : new Set()
 
   return (
@@ -142,9 +226,16 @@ function App() {
                 onSelect={handleSelectSaved}
                 onDelete={handleDeleteSaved}
                 onUploadNew={handleShowUpload}
+                onOpenReceiptBank={handleShowReceiptBank}
+                receiptBankCount={receiptBankCount}
               />
             ) : (
               <div className="upload-section">
+                <div className="home-actions">
+                  <button className="receipt-bank-link" onClick={handleShowReceiptBank}>
+                    Receipt Bank{receiptBankCount > 0 ? ` (${receiptBankCount})` : ''}
+                  </button>
+                </div>
                 <FileUpload
                   onFileSelected={handleFileSelected}
                   isLoading={isLoading}
@@ -168,6 +259,15 @@ function App() {
           </div>
         )}
 
+        {view === 'receipt-bank' && (
+          <ReceiptBank
+            receipts={receiptBank}
+            onAddReceipt={handleAddReceiptToBank}
+            onDeleteReceipt={handleDeleteReceiptFromBank}
+            onBack={handleBackToList}
+          />
+        )}
+
         {view === 'detail' && currentStatement && (
           <div className="results-section">
             <div className="results-header">
@@ -187,6 +287,25 @@ function App() {
                 onReceiptMatched={handleReceiptMatched}
               />
             </div>
+
+            {autoMatchResults && autoMatchResults.length > 0 && (
+              <div className="auto-match-banner">
+                <div className="auto-match-banner__title">
+                  Auto-matched {autoMatchResults.length} receipt{autoMatchResults.length !== 1 ? 's' : ''} from Receipt Bank
+                </div>
+                <div className="auto-match-banner__list">
+                  {autoMatchResults.map((m, i) => (
+                    <span key={i}>
+                      {m.receipt.name || 'Receipt'} &rarr; {m.transaction.description}
+                    </span>
+                  ))}
+                </div>
+                <button className="auto-match-banner__dismiss" onClick={() => setAutoMatchResults(null)}>
+                  Dismiss
+                </button>
+              </div>
+            )}
+
             <TransactionTable
               transactions={currentStatement.transactions}
               verifiedIds={verifiedSet}

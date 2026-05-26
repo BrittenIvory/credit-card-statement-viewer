@@ -1,4 +1,5 @@
 const STORAGE_KEY = 'cc-statement-viewer-statements'
+const RECEIPT_BANK_KEY = 'cc-statement-viewer-receipt-bank'
 
 export function loadStatements() {
   try {
@@ -43,5 +44,22 @@ export function createStatementRecord(fileName, transactions) {
     verifiedIds: [],
     companyAssignments: {},
     receiptImages: {},
+  }
+}
+
+export function loadReceiptBank() {
+  try {
+    const data = localStorage.getItem(RECEIPT_BANK_KEY)
+    return data ? JSON.parse(data) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function persistReceiptBank(receiptBank) {
+  try {
+    localStorage.setItem(RECEIPT_BANK_KEY, JSON.stringify(receiptBank))
+  } catch {
+    console.warn('localStorage quota exceeded — receipt bank images may not persist')
   }
 }

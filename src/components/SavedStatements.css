@@ -9,6 +9,29 @@
   margin-bottom: 20px;
 }
 
+.saved-statements__header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.receipt-bank-btn {
+  padding: 8px 20px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.receipt-bank-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
 .saved-statements__title {
   font-size: 20px;
   font-weight: 600;

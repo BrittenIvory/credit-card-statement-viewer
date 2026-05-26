@@ -1,6 +1,6 @@
 import './SavedStatements.css'
 
-export default function SavedStatements({ statements, onSelect, onDelete, onUploadNew }) {
+export default function SavedStatements({ statements, onSelect, onDelete, onUploadNew, onOpenReceiptBank, receiptBankCount }) {
   function formatDate(isoStr) {
     return new Date(isoStr).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -15,9 +15,14 @@ export default function SavedStatements({ statements, onSelect, onDelete, onUplo
     <div className="saved-statements">
       <div className="saved-statements__header">
         <h2 className="saved-statements__title">Saved Statements</h2>
-        <button className="upload-new-btn" onClick={onUploadNew}>
-          Upload new statement
-        </button>
+        <div className="saved-statements__header-actions">
+          <button className="receipt-bank-btn" onClick={onOpenReceiptBank}>
+            Receipt Bank{receiptBankCount > 0 ? ` (${receiptBankCount})` : ''}
+          </button>
+          <button className="upload-new-btn" onClick={onUploadNew}>
+            Upload new statement
+          </button>
+        </div>
       </div>
 
       {statements.length === 0 ? (
