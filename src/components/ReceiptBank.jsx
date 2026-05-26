@@ -42,6 +42,7 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
 
     setIsProcessing(true)
     setShowManualEntry(false)
+    setPendingImage(null)
 
     try {
       const [receiptData, dataURL] = await Promise.all([

@@ -17,6 +17,7 @@ export default function ReceiptUpload({ transactions, onReceiptMatched }) {
     setIsProcessing(true)
     setResult(null)
     setShowManual(false)
+    setPendingImage(null)
 
     try {
       const [receiptData, dataURL] = await Promise.all([
