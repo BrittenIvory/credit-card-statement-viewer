@@ -41,7 +41,7 @@ function StatementCard({ statement: s, onSelect, onDelete, onRename, formatDate,
             onClick={(e) => e.stopPropagation()}
             onBlur={handleSave}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave()
+              if (e.key === 'Enter') inputRef.current?.blur()
               if (e.key === 'Escape') { isCancellingRef.current = true; setDraft(s.fileName); setEditing(false) }
             }}
           />

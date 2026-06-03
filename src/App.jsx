@@ -48,7 +48,7 @@ function EditableName({ value, onSave }) {
         onChange={(e) => setDraft(e.target.value)}
         onBlur={handleSave}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') handleSave()
+          if (e.key === 'Enter') inputRef.current?.blur()
           if (e.key === 'Escape') {
             isCancellingRef.current = true
             setDraft(value)
