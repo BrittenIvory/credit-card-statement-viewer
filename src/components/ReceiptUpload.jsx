@@ -71,7 +71,7 @@ export default function ReceiptUpload({ transactions, onReceiptMatched }) {
 
   function handleManualMatch() {
     if (manualTransaction && pendingImage) {
-      onReceiptMatched(manualTransaction, pendingImage)
+      onReceiptMatched(Number(manualTransaction), pendingImage)
       setResult({
         success: true,
         receiptData: {
