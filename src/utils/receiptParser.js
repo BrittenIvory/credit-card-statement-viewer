@@ -211,7 +211,7 @@ function normalizeDate(dateStr) {
   }
 
   const months = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' }
-  const namedMatch = dateStr.match(/([A-Za-z]{3,9})\s+(\d{1,2})/i)
+  const namedMatch = dateStr.match(/([A-Za-z]{3,9})\.?\s+(\d{1,2})(?!\d)/i)
   if (namedMatch) {
     const monthKey = namedMatch[1].toLowerCase().slice(0, 3)
     if (months[monthKey]) {
