@@ -74,6 +74,7 @@ function App() {
   const [autoMatchResults, setAutoMatchResults] = useState(null)
   const isInitialMount = useRef(true)
   const isInitialMountBank = useRef(true)
+  const uploadActiveRef = useRef(false)
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -138,6 +139,7 @@ function App() {
     setIsLoading(true)
     setError(null)
     setAutoMatchResults(null)
+    uploadActiveRef.current = true
 
     try {
       const parsed = await extractTransactionsFromPDF(file)
@@ -149,8 +151,10 @@ function App() {
         let record = createStatementRecord(file.name, parsed)
         record = autoMatchReceipts(record)
         setSavedStatements((prev) => updateStatementsList(prev, record))
-        setCurrentStatement(record)
-        setView('detail')
+        if (uploadActiveRef.current) {
+          setCurrentStatement(record)
+          setView('detail')
+        }
       }
     } catch (err) {
       console.error('PDF parsing error:', err)
@@ -174,13 +178,15 @@ function App() {
     }
   }
 
+  const currentStatementRef = useRef(currentStatement)
+  currentStatementRef.current = currentStatement
+
   function updateCurrentStatement(updater) {
-    setCurrentStatement((prev) => {
-      if (!prev) return prev
-      const updated = updater(prev)
-      setSavedStatements((prevStatements) => updateStatementsList(prevStatements, updated))
-      return updated
-    })
+    const prev = currentStatementRef.current
+    if (!prev) return
+    const updated = updater(prev)
+    setCurrentStatement(updated)
+    setSavedStatements((prevStatements) => updateStatementsList(prevStatements, updated))
   }
 
   function handleToggleVerified(id) {
@@ -264,6 +270,7 @@ function App() {
   }
 
   function handleBackToList() {
+    uploadActiveRef.current = false
     setCurrentStatement(null)
     setAutoMatchResults(null)
     setView('home')
@@ -276,6 +283,7 @@ function App() {
   }
 
   function handleShowReceiptBank() {
+    uploadActiveRef.current = false
     setView('receipt-bank')
     setError(null)
   }
