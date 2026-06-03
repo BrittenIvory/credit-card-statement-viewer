@@ -112,7 +112,7 @@ function App() {
         date: receipt.date || null,
       }
       const match = findBestMatch(receiptData, record.transactions)
-      if (match && !(match.transaction.id in updated.receiptImages)) {
+      if (match && receipt.image && !(match.transaction.id in updated.receiptImages)) {
         updated = {
           ...updated,
           receiptImages: {
