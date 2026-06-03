@@ -20,35 +20,48 @@ export default function ReceiptUpload({ transactions, onReceiptMatched }) {
     setPendingImage(null)
 
     try {
-      const [receiptData, dataURL] = await Promise.all([
+      const [ocrResult, imageResult] = await Promise.allSettled([
         extractReceiptData(file),
         imageFileToDataURL(file),
       ])
 
-      setPendingImage(dataURL)
+      const dataURL = imageResult.status === 'fulfilled' ? imageResult.value : null
+      const receiptData = ocrResult.status === 'fulfilled' ? ocrResult.value : null
 
-      const match = findBestMatch(receiptData, transactions)
+      if (dataURL) setPendingImage(dataURL)
 
-      if (match) {
-        onReceiptMatched(match.transaction.id, dataURL)
-        setResult({
-          success: true,
-          receiptData,
-          matchedTransaction: match.transaction,
-          score: match.score,
-        })
-      } else {
+      if (ocrResult.status === 'rejected') {
+        console.error('OCR failed:', ocrResult.reason)
         setResult({
           success: false,
-          receiptData,
-          message: 'Could not find a matching transaction.',
-        })
-        setManualData({
-          name: receiptData.name || '',
-          amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
-          date: receiptData.date || '',
+          receiptData: null,
+          message: 'Failed to process the receipt image.',
         })
         setShowManual(true)
+      } else {
+        const match = findBestMatch(receiptData, transactions)
+
+        if (match && dataURL) {
+          onReceiptMatched(match.transaction.id, dataURL)
+          setResult({
+            success: true,
+            receiptData,
+            matchedTransaction: match.transaction,
+            score: match.score,
+          })
+        } else {
+          setResult({
+            success: false,
+            receiptData,
+            message: match ? 'Image conversion failed.' : 'Could not find a matching transaction.',
+          })
+          setManualData({
+            name: receiptData.name || '',
+            amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
+            date: receiptData.date || '',
+          })
+          setShowManual(true)
+        }
       }
     } catch (err) {
       console.error('Receipt processing error:', err)
