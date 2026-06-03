@@ -1,6 +1,92 @@
 import './SavedStatements.css'
 
-export default function SavedStatements({ statements, onSelect, onDelete, onUploadNew, onOpenReceiptBank, receiptBankCount }) {
+import { useState, useRef, useEffect } from 'react'
+
+function StatementCard({ statement: s, onSelect, onDelete, onRename, formatDate, verifiedCount, totalCount, assignedCount, receiptCount }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(s.fileName)
+  const inputRef = useRef(null)
+
+  useEffect(() => { setDraft(s.fileName) }, [s.fileName])
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [editing])
+
+  function handleSave() {
+    setEditing(false)
+    if (draft.trim() && draft.trim() !== s.fileName) {
+      onRename(s.id, draft.trim())
+    } else {
+      setDraft(s.fileName)
+    }
+  }
+
+  return (
+    <div className="statement-card" onClick={() => onSelect(s)}>
+      <div className="statement-card__main">
+        {editing ? (
+          <input
+            ref={inputRef}
+            className="statement-card__name-input"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.stopPropagation()}
+            onBlur={handleSave}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSave()
+              if (e.key === 'Escape') { setDraft(s.fileName); setEditing(false) }
+            }}
+          />
+        ) : (
+          <div className="statement-card__file">
+            {s.fileName}
+            <button
+              className="statement-card__rename"
+              onClick={(e) => { e.stopPropagation(); setEditing(true) }}
+              title="Rename statement"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+            </button>
+          </div>
+        )}
+        <div className="statement-card__date">
+          Uploaded {formatDate(s.uploadDate)}
+        </div>
+      </div>
+      <div className="statement-card__stats">
+        <span className="stat">{totalCount} transactions</span>
+        <span className={`stat ${verifiedCount === totalCount ? 'stat--done' : ''}`}>
+          {verifiedCount}/{totalCount} verified
+        </span>
+        {assignedCount > 0 && <span className="stat">{assignedCount} assigned</span>}
+        {receiptCount > 0 && <span className="stat">{receiptCount} receipts</span>}
+      </div>
+      <div className="statement-card__actions">
+        <button
+          className="statement-card__delete"
+          onClick={(e) => {
+            e.stopPropagation()
+            if (confirm('Delete this saved statement?')) onDelete(s.id)
+          }}
+          title="Delete statement"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  )
+}
+
+export default function SavedStatements({ statements, onSelect, onDelete, onRename, onUploadNew, onOpenReceiptBank, receiptBankCount }) {
   function formatDate(isoStr) {
     return new Date(isoStr).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -41,53 +127,18 @@ export default function SavedStatements({ statements, onSelect, onDelete, onUplo
             const receiptCount = Object.keys(s.receiptImages).length
 
             return (
-              <div
+              <StatementCard
                 key={s.id}
-                className="statement-card"
-                onClick={() => onSelect(s)}
-              >
-                <div className="statement-card__main">
-                  <div className="statement-card__file">{s.fileName}</div>
-                  <div className="statement-card__date">
-                    Uploaded {formatDate(s.uploadDate)}
-                  </div>
-                </div>
-                <div className="statement-card__stats">
-                  <span className="stat">
-                    {totalCount} transactions
-                  </span>
-                  <span className={`stat ${verifiedCount === totalCount ? 'stat--done' : ''}`}>
-                    {verifiedCount}/{totalCount} verified
-                  </span>
-                  {assignedCount > 0 && (
-                    <span className="stat">
-                      {assignedCount} assigned
-                    </span>
-                  )}
-                  {receiptCount > 0 && (
-                    <span className="stat">
-                      {receiptCount} receipts
-                    </span>
-                  )}
-                </div>
-                <div className="statement-card__actions">
-                  <button
-                    className="statement-card__delete"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      if (confirm('Delete this saved statement?')) {
-                        onDelete(s.id)
-                      }
-                    }}
-                    title="Delete statement"
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+                statement={s}
+                onSelect={onSelect}
+                onDelete={onDelete}
+                onRename={onRename}
+                formatDate={formatDate}
+                verifiedCount={verifiedCount}
+                totalCount={totalCount}
+                assignedCount={assignedCount}
+                receiptCount={receiptCount}
+              />
             )
           })}
         </div>

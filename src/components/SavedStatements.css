@@ -87,6 +87,43 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.statement-card__rename {
+  padding: 2px;
+  background: none;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  border-radius: 3px;
+  opacity: 0;
+  transition: all 0.2s;
+  flex-shrink: 0;
+}
+
+.statement-card:hover .statement-card__rename {
+  opacity: 0.6;
+}
+
+.statement-card__rename:hover {
+  opacity: 1 !important;
+  color: var(--color-primary);
+  background: var(--color-bg);
+}
+
+.statement-card__name-input {
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--color-text);
+  border: 1px solid var(--color-primary);
+  border-radius: 4px;
+  padding: 2px 6px;
+  outline: none;
+  width: 100%;
+  background: var(--color-surface);
 }
 
 .statement-card__date {

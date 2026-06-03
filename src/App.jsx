@@ -9,6 +9,61 @@ import { findBestMatch } from './utils/receiptParser'
 import { loadStatements, updateStatementsList, persistStatements, createStatementRecord, loadReceiptBank, persistReceiptBank } from './utils/storage'
 import './App.css'
 
+function EditableName({ value, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    setDraft(value)
+  }, [value])
+
+  useEffect(() => {
+    if (editing && inputRef.current) {
+      inputRef.current.focus()
+      inputRef.current.select()
+    }
+  }, [editing])
+
+  function handleSave() {
+    setEditing(false)
+    if (draft.trim() && draft.trim() !== value) {
+      onSave(draft.trim())
+    } else {
+      setDraft(value)
+    }
+  }
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        className="editable-name__input"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={handleSave}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') handleSave()
+          if (e.key === 'Escape') {
+            setDraft(value)
+            setEditing(false)
+          }
+        }}
+      />
+    )
+  }
+
+  return (
+    <span className="editable-name" onClick={() => setEditing(true)} title="Click to rename">
+      {value}
+      <svg className="editable-name__icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+      </svg>
+    </span>
+  )
+}
+
 function App() {
   const [view, setView] = useState('home')
   const [savedStatements, setSavedStatements] = useState(() => loadStatements())
@@ -68,6 +123,12 @@ function App() {
 
     if (matched.length > 0) {
       setAutoMatchResults(matched)
+      const matchedIds = matched.map((m) => m.transaction.id)
+      const verifiedSet = new Set(updated.verifiedIds)
+      for (const id of matchedIds) {
+        verifiedSet.add(id)
+      }
+      updated = { ...updated, verifiedIds: [...verifiedSet] }
     }
 
     return updated
@@ -155,11 +216,27 @@ function App() {
     }))
   }
 
+  function handleRenameStatement(id, newName) {
+    if (!newName || !newName.trim()) return
+    const trimmed = newName.trim()
+    setSavedStatements((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, fileName: trimmed } : s))
+    )
+    setCurrentStatement((prev) =>
+      prev && prev.id === id ? { ...prev, fileName: trimmed } : prev
+    )
+  }
+
   function handleReceiptMatched(transactionId, imageDataURL) {
-    updateCurrentStatement((prev) => ({
-      ...prev,
-      receiptImages: { ...prev.receiptImages, [transactionId]: imageDataURL },
-    }))
+    updateCurrentStatement((prev) => {
+      const verifiedSet = new Set(prev.verifiedIds)
+      verifiedSet.add(transactionId)
+      return {
+        ...prev,
+        receiptImages: { ...prev.receiptImages, [transactionId]: imageDataURL },
+        verifiedIds: [...verifiedSet],
+      }
+    })
   }
 
   function handleAddReceiptToBank(month, receipt) {
@@ -225,6 +302,7 @@ function App() {
                 statements={savedStatements}
                 onSelect={handleSelectSaved}
                 onDelete={handleDeleteSaved}
+                onRename={handleRenameStatement}
                 onUploadNew={handleShowUpload}
                 onOpenReceiptBank={handleShowReceiptBank}
                 receiptBankCount={receiptBankCount}
@@ -276,7 +354,10 @@ function App() {
                   &larr; Back
                 </button>
                 <div className="results-header__info">
-                  <span className="results-header__file">{currentStatement.fileName}</span>
+                  <EditableName
+                    value={currentStatement.fileName}
+                    onSave={(newName) => handleRenameStatement(currentStatement.id, newName)}
+                  />
                   <span className="results-header__count">
                     {currentStatement.transactions.length} transactions
                   </span>
