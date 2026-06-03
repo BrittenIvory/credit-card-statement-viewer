@@ -45,18 +45,25 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
     setPendingImage(null)
 
     try {
-      const [receiptData, dataURL] = await Promise.all([
+      const [ocrResult, imageResult] = await Promise.allSettled([
         extractReceiptData(file),
         imageFileToDataURL(file),
       ])
 
-      setPendingImage(dataURL)
+      const dataURL = imageResult.status === 'fulfilled' ? imageResult.value : null
+      const receiptData = ocrResult.status === 'fulfilled' ? ocrResult.value : null
 
-      setManualData({
-        name: receiptData.name || '',
-        amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
-        date: receiptData.date || '',
-      })
+      if (dataURL) setPendingImage(dataURL)
+
+      if (receiptData) {
+        setManualData({
+          name: receiptData.name || '',
+          amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
+          date: receiptData.date || '',
+        })
+      } else {
+        setManualData({ name: '', amount: '', date: '' })
+      }
       setShowManualEntry(true)
     } catch (err) {
       console.error('Receipt processing error:', err)

@@ -13,6 +13,7 @@ function EditableName({ value, onSave }) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(value)
   const inputRef = useRef(null)
+  const isCancellingRef = useRef(false)
 
   useEffect(() => {
     setDraft(value)
@@ -26,6 +27,10 @@ function EditableName({ value, onSave }) {
   }, [editing])
 
   function handleSave() {
+    if (isCancellingRef.current) {
+      isCancellingRef.current = false
+      return
+    }
     setEditing(false)
     if (draft.trim() && draft.trim() !== value) {
       onSave(draft.trim())
@@ -45,6 +50,7 @@ function EditableName({ value, onSave }) {
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleSave()
           if (e.key === 'Escape') {
+            isCancellingRef.current = true
             setDraft(value)
             setEditing(false)
           }

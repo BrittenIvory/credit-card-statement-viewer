@@ -6,6 +6,7 @@ function StatementCard({ statement: s, onSelect, onDelete, onRename, formatDate,
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(s.fileName)
   const inputRef = useRef(null)
+  const isCancellingRef = useRef(false)
 
   useEffect(() => { setDraft(s.fileName) }, [s.fileName])
   useEffect(() => {
@@ -16,6 +17,10 @@ function StatementCard({ statement: s, onSelect, onDelete, onRename, formatDate,
   }, [editing])
 
   function handleSave() {
+    if (isCancellingRef.current) {
+      isCancellingRef.current = false
+      return
+    }
     setEditing(false)
     if (draft.trim() && draft.trim() !== s.fileName) {
       onRename(s.id, draft.trim())
@@ -37,7 +42,7 @@ function StatementCard({ statement: s, onSelect, onDelete, onRename, formatDate,
             onBlur={handleSave}
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleSave()
-              if (e.key === 'Escape') { setDraft(s.fileName); setEditing(false) }
+              if (e.key === 'Escape') { isCancellingRef.current = true; setDraft(s.fileName); setEditing(false) }
             }}
           />
         ) : (
