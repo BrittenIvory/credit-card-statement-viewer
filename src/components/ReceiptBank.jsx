@@ -2,11 +2,23 @@ import { useState, useRef } from 'react'
 import { extractReceiptData, imageFileToDataURL } from '../utils/receiptParser'
 import './ReceiptBank.css'
 
+const COMPANIES = [
+  'Milson',
+  'Agrituf',
+  'Stephenson',
+  'Hindale',
+  'Entrance',
+  'Novarlo',
+  'Arlo Hub',
+  'Arlo Performance',
+  'Arlo Partners',
+]
+
 export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, onBack }) {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())
   const [isProcessing, setIsProcessing] = useState(false)
   const [showManualEntry, setShowManualEntry] = useState(false)
-  const [manualData, setManualData] = useState({ name: '', amount: '', date: '' })
+  const [manualData, setManualData] = useState({ name: '', amount: '', date: '', company: '' })
   const [pendingImage, setPendingImage] = useState(null)
   const inputRef = useRef(null)
 
@@ -56,18 +68,19 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
       if (dataURL) setPendingImage(dataURL)
 
       if (receiptData) {
-        setManualData({
+        setManualData((prev) => ({
+          ...prev,
           name: receiptData.name || '',
           amount: receiptData.amount !== null ? receiptData.amount.toFixed(2) : '',
           date: receiptData.date || '',
-        })
+        }))
       } else {
-        setManualData({ name: '', amount: '', date: '' })
+        setManualData((prev) => ({ ...prev, name: '', amount: '', date: '' }))
       }
       setShowManualEntry(true)
     } catch (err) {
       console.error('Receipt processing error:', err)
-      setManualData({ name: '', amount: '', date: '' })
+      setManualData({ name: '', amount: '', date: '', company: '' })
       setShowManualEntry(true)
     } finally {
       setIsProcessing(false)
@@ -89,19 +102,20 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
       name: manualData.name,
       amount: isNaN(amount) ? null : amount,
       date: manualData.date,
+      company: manualData.company || '',
       rawText: '',
       addedAt: new Date().toISOString(),
     }
     onAddReceipt(selectedMonth, receipt)
     setShowManualEntry(false)
-    setManualData({ name: '', amount: '', date: '' })
+    setManualData({ name: '', amount: '', date: '', company: '' })
     setPendingImage(null)
   }
 
   function handleManualAdd() {
     setShowManualEntry(true)
     setPendingImage(null)
-    setManualData({ name: '', amount: '', date: '' })
+    setManualData({ name: '', amount: '', date: '', company: '' })
   }
 
   const monthReceipts = receipts[selectedMonth] || []
@@ -181,6 +195,18 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
                 placeholder="e.g. 05/03/2026"
               />
             </div>
+            <div className="receipt-bank__field">
+              <label>Company</label>
+              <select
+                value={manualData.company}
+                onChange={(e) => setManualData((d) => ({ ...d, company: e.target.value }))}
+              >
+                <option value="">-- Select company --</option>
+                {COMPANIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="receipt-bank__manual-actions">
             <button className="receipt-bank__save-btn" onClick={handleManualSave}>
@@ -216,6 +242,7 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
                   <div className="receipt-bank__item-details">
                     {r.amount !== null ? `$${Number(r.amount).toFixed(2)}` : 'No amount'}
                     {r.date ? ` \u00B7 ${r.date}` : ''}
+                    {r.company ? ` \u00B7 ${r.company}` : ''}
                   </div>
                 </div>
                 <button

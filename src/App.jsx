@@ -119,6 +119,10 @@ function App() {
             ...updated.receiptImages,
             [match.transaction.id]: receipt.image,
           },
+          companyAssignments: {
+            ...updated.companyAssignments,
+            ...(receipt.company ? { [match.transaction.id]: receipt.company } : {}),
+          },
         }
         matched.push({
           receipt,
