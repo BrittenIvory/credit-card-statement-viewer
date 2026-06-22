@@ -6,7 +6,7 @@ import ReceiptUpload from './components/ReceiptUpload'
 import ReceiptBank from './components/ReceiptBank'
 import { extractTransactionsFromPDF } from './utils/pdfParser'
 import { findBestMatch } from './utils/receiptParser'
-import { loadStatements, updateStatementsList, persistStatements, createStatementRecord, loadReceiptBank, persistReceiptBank } from './utils/storage'
+import { initStorage, loadStatements, updateStatementsList, persistStatements, createStatementRecord, loadReceiptBank, persistReceiptBank } from './utils/storage'
 import './App.css'
 
 function EditableName({ value, onSave }) {
@@ -68,6 +68,27 @@ function EditableName({ value, onSave }) {
       </svg>
     </span>
   )
+}
+
+function AppLoader() {
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    initStorage().then(() => setReady(true))
+  }, [])
+
+  if (!ready) {
+    return (
+      <div className="app">
+        <header className="app-header">
+          <h1 className="app-title">Credit Card Statement Viewer</h1>
+          <p className="app-subtitle">Loading your data...</p>
+        </header>
+      </div>
+    )
+  }
+
+  return <App />
 }
 
 function App() {
@@ -421,4 +442,4 @@ function App() {
   )
 }
 
-export default App
+export default AppLoader
