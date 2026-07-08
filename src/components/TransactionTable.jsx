@@ -1,25 +1,15 @@
 import React, { useState, useMemo } from 'react'
+import { COMPANIES } from '../utils/companies'
 import './TransactionTable.css'
 
 const SORT_DIRECTIONS = { ASC: 'asc', DESC: 'desc' }
-
-const COMPANIES = [
-  'Milson',
-  'Agrituf',
-  'Stephenson',
-  'Hindale',
-  'Entrance',
-  'Novarlo',
-  'Arlo Hub',
-  'Arlo Performance',
-  'Arlo Partners',
-]
 
 export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, onBatchToggleVerified, companyAssignments, onAssignCompany, receiptImages }) {
   const [expandedReceipt, setExpandedReceipt] = useState(null)
   const [nameFilter, setNameFilter] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
   const [sortField, setSortField] = useState(null)
   const [sortDirection, setSortDirection] = useState(SORT_DIRECTIONS.ASC)
 
@@ -47,6 +37,14 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
       }
     }
 
+    if (companyFilter) {
+      if (companyFilter === '__none__') {
+        result = result.filter((t) => !companyAssignments[t.id])
+      } else {
+        result = result.filter((t) => companyAssignments[t.id] === companyFilter)
+      }
+    }
+
     if (sortField) {
       result.sort((a, b) => {
         let cmp = 0
@@ -62,7 +60,7 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
     }
 
     return result
-  }, [transactions, nameFilter, minAmount, maxAmount, sortField, sortDirection])
+  }, [transactions, nameFilter, minAmount, maxAmount, companyFilter, companyAssignments, sortField, sortDirection])
 
   function handleSort(field) {
     if (sortField === field) {
@@ -94,9 +92,41 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
     setNameFilter('')
     setMinAmount('')
     setMaxAmount('')
+    setCompanyFilter('')
   }
 
-  const hasActiveFilters = nameFilter || minAmount || maxAmount
+  const hasActiveFilters = nameFilter || minAmount || maxAmount || companyFilter
+
+  function csvEscape(value) {
+    const str = value == null ? '' : String(value)
+    if (/[",\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+  }
+
+  function handleExport() {
+    const headers = ['Date', 'Description', 'Amount', 'Company', 'Verified']
+    const rows = filtered.map((t) => [
+      t.date,
+      t.description,
+      t.amount,
+      companyAssignments[t.id] || '',
+      verifiedIds.has(t.id) ? 'Yes' : 'No',
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map(csvEscape).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const totalAmount = filtered.reduce((sum, t) => sum + t.amount, 0)
 
@@ -151,11 +181,31 @@ export default function TransactionTable({ transactions, verifiedIds, onToggleVe
               />
             </div>
           </div>
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="companyFilter">
+              Company
+            </label>
+            <select
+              id="companyFilter"
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="filter-input"
+            >
+              <option value="">All companies</option>
+              <option value="__none__">Unassigned</option>
+              {COMPANIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
           {hasActiveFilters && (
             <button className="clear-btn" onClick={clearFilters}>
               Clear filters
             </button>
           )}
+          <button className="export-btn" onClick={handleExport} disabled={filtered.length === 0}>
+            Export CSV
+          </button>
         </div>
       </div>
 

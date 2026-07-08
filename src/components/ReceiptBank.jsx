@@ -1,18 +1,7 @@
 import { useState, useRef } from 'react'
 import { extractReceiptData, imageFileToDataURL } from '../utils/receiptParser'
+import { COMPANIES } from '../utils/companies'
 import './ReceiptBank.css'
-
-const COMPANIES = [
-  'Milson',
-  'Agrituf',
-  'Stephenson',
-  'Hindale',
-  'Entrance',
-  'Novarlo',
-  'Arlo Hub',
-  'Arlo Performance',
-  'Arlo Partners',
-]
 
 export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, onBack }) {
   const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth())

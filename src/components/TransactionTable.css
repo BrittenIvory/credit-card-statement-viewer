@@ -86,6 +86,27 @@
   color: var(--color-text);
 }
 
+.export-btn {
+  padding: 8px 16px;
+  background: var(--color-primary, #2563eb);
+  border: 1px solid var(--color-primary, #2563eb);
+  border-radius: 6px;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.export-btn:hover:not(:disabled) {
+  filter: brightness(0.95);
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .table-info {
   display: flex;
   justify-content: space-between;
