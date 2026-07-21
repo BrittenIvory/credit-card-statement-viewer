@@ -222,7 +222,7 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
               {monthReceipts.length} receipt{monthReceipts.length !== 1 ? 's' : ''} for {formatMonth(selectedMonth)}
             </div>
             {monthReceipts.map((r) => (
-              <div key={r.id} className="receipt-bank__item">
+              <div key={r.id} className={`receipt-bank__item ${r.matched ? 'receipt-bank__item--matched' : ''}`}>
                 {r.image && (
                   <img src={r.image} alt="Receipt" className="receipt-bank__thumb" />
                 )}
@@ -234,6 +234,11 @@ export default function ReceiptBank({ receipts, onAddReceipt, onDeleteReceipt, o
                     {r.company ? ` \u00B7 ${r.company}` : ''}
                   </div>
                 </div>
+                {r.matched && (
+                  <span className="receipt-bank__matched-badge" title="Matched to a statement transaction">
+                    &#10003; Matched
+                  </span>
+                )}
                 <button
                   className="receipt-bank__item-delete"
                   onClick={() => onDeleteReceipt(selectedMonth, r.id)}

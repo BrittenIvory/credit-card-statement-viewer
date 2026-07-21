@@ -119,12 +119,26 @@ function App() {
     persistReceiptBank(receiptBank)
   }, [receiptBank])
 
-  function autoMatchReceipts(record) {
-    const allReceipts = Object.values(receiptBank).flat()
-    if (allReceipts.length === 0) return record
+  function matchReceiptsIntoRecord(record, bank) {
+    const allReceipts = Object.entries(bank).flatMap(([month, arr]) =>
+      arr.map((r) => ({ ...r, _month: month }))
+    )
+    if (allReceipts.length === 0) {
+      return { record, matched: [], matchedReceiptIds: [] }
+    }
 
-    let updated = { ...record }
+    const updated = {
+      ...record,
+      receiptImages: { ...record.receiptImages },
+      companyAssignments: { ...record.companyAssignments },
+      verifiedIds: [...record.verifiedIds],
+    }
+    const verifiedSet = new Set(updated.verifiedIds)
+    const claimedTxIds = new Set(
+      Object.keys(updated.receiptImages).map((k) => Number(k))
+    )
     const matched = []
+    const matchedReceiptIds = []
 
     for (const receipt of allReceipts) {
       const receiptData = {
@@ -133,37 +147,40 @@ function App() {
         date: receipt.date || null,
       }
       const match = findBestMatch(receiptData, record.transactions)
-      if (match && receipt.image && !(match.transaction.id in updated.receiptImages)) {
-        updated = {
-          ...updated,
-          receiptImages: {
-            ...updated.receiptImages,
-            [match.transaction.id]: receipt.image,
-          },
-          companyAssignments: {
-            ...updated.companyAssignments,
-            ...(receipt.company ? { [match.transaction.id]: receipt.company } : {}),
-          },
-        }
-        matched.push({
-          receipt,
-          transaction: match.transaction,
-          score: match.score,
-        })
+      if (!match) continue
+
+      const txId = match.transaction.id
+      if (claimedTxIds.has(txId)) continue
+      claimedTxIds.add(txId)
+
+      if (receipt.image) {
+        updated.receiptImages[txId] = receipt.image
       }
+      if (receipt.company) {
+        updated.companyAssignments[txId] = receipt.company
+      }
+      verifiedSet.add(txId)
+
+      matched.push({ receipt, transaction: match.transaction, score: match.score })
+      matchedReceiptIds.push({ month: receipt._month, id: receipt.id })
     }
 
-    if (matched.length > 0) {
-      setAutoMatchResults(matched)
-      const matchedIds = matched.map((m) => m.transaction.id)
-      const verifiedSet = new Set(updated.verifiedIds)
-      for (const id of matchedIds) {
-        verifiedSet.add(id)
-      }
-      updated = { ...updated, verifiedIds: [...verifiedSet] }
-    }
+    updated.verifiedIds = [...verifiedSet]
+    return { record: updated, matched, matchedReceiptIds }
+  }
 
-    return updated
+  function markReceiptsMatched(matchedReceiptIds) {
+    if (matchedReceiptIds.length === 0) return
+    setReceiptBank((prev) => {
+      const next = { ...prev }
+      for (const { month, id } of matchedReceiptIds) {
+        if (!next[month]) continue
+        next[month] = next[month].map((r) =>
+          r.id === id ? { ...r, matched: true } : r
+        )
+      }
+      return next
+    })
   }
 
   async function handleFileSelected(file) {
@@ -179,8 +196,12 @@ function App() {
           'No transactions found in this PDF. Make sure it is a credit card statement with dates and amounts.'
         )
       } else {
-        let record = createStatementRecord(file.name, parsed)
-        record = autoMatchReceipts(record)
+        const base = createStatementRecord(file.name, parsed)
+        const { record, matched, matchedReceiptIds } = matchReceiptsIntoRecord(base, receiptBank)
+        if (matched.length > 0) {
+          setAutoMatchResults(matched)
+          markReceiptsMatched(matchedReceiptIds)
+        }
         setSavedStatements((prev) => updateStatementsList(prev, record))
         if (uploadActiveRef.current) {
           setCurrentStatement(record)
@@ -274,6 +295,18 @@ function App() {
         verifiedIds: [...verifiedSet],
       }
     })
+  }
+
+  function handleRematchReceipts() {
+    const prev = currentStatementRef.current
+    if (!prev) return
+    const { record, matched, matchedReceiptIds } = matchReceiptsIntoRecord(prev, receiptBank)
+    setAutoMatchResults(matched)
+    if (matched.length > 0) {
+      setCurrentStatement(record)
+      setSavedStatements((s) => updateStatementsList(s, record))
+      markReceiptsMatched(matchedReceiptIds)
+    }
   }
 
   function handleAddReceiptToBank(month, receipt) {
@@ -402,24 +435,42 @@ function App() {
                   </span>
                 </div>
               </div>
-              <ReceiptUpload
-                transactions={currentStatement.transactions}
-                onReceiptMatched={handleReceiptMatched}
-              />
+              <div className="results-header__tools">
+                <button
+                  className="rematch-btn"
+                  onClick={handleRematchReceipts}
+                  disabled={receiptBankCount === 0}
+                  title={receiptBankCount === 0 ? 'No receipts in the Receipt Bank' : 'Re-check all Receipt Bank receipts against this statement'}
+                >
+                  Re-check Receipt Bank{receiptBankCount > 0 ? ` (${receiptBankCount})` : ''}
+                </button>
+                <ReceiptUpload
+                  transactions={currentStatement.transactions}
+                  onReceiptMatched={handleReceiptMatched}
+                />
+              </div>
             </div>
 
-            {autoMatchResults && autoMatchResults.length > 0 && (
+            {autoMatchResults && (
               <div className="auto-match-banner">
-                <div className="auto-match-banner__title">
-                  Auto-matched {autoMatchResults.length} receipt{autoMatchResults.length !== 1 ? 's' : ''} from Receipt Bank
-                </div>
-                <div className="auto-match-banner__list">
-                  {autoMatchResults.map((m, i) => (
-                    <span key={i}>
-                      {m.receipt.name || 'Receipt'} &rarr; {m.transaction.description}
-                    </span>
-                  ))}
-                </div>
+                {autoMatchResults.length > 0 ? (
+                  <>
+                    <div className="auto-match-banner__title">
+                      Auto-matched {autoMatchResults.length} receipt{autoMatchResults.length !== 1 ? 's' : ''} from Receipt Bank
+                    </div>
+                    <div className="auto-match-banner__list">
+                      {autoMatchResults.map((m, i) => (
+                        <span key={i}>
+                          {m.receipt.name || 'Receipt'} &rarr; {m.transaction.description}
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div className="auto-match-banner__title">
+                    No new receipts matched these transactions.
+                  </div>
+                )}
                 <button className="auto-match-banner__dismiss" onClick={() => setAutoMatchResults(null)}>
                   Dismiss
                 </button>

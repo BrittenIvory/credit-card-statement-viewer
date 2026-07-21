@@ -212,6 +212,22 @@
   box-shadow: var(--shadow);
 }
 
+.receipt-bank__item--matched {
+  border-left: 3px solid #16a34a;
+}
+
+.receipt-bank__matched-badge {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 3px 10px;
+  white-space: nowrap;
+}
+
 .receipt-bank__thumb {
   width: 48px;
   height: 48px;
