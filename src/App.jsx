@@ -102,6 +102,17 @@ function App() {
   const isInitialMount = useRef(true)
   const isInitialMountBank = useRef(true)
   const uploadActiveRef = useRef(false)
+  const importInputRef = useRef(null)
+
+  function triggerImport() {
+    importInputRef.current?.click()
+  }
+
+  function handleImportInputChange(e) {
+    const file = e.target.files[0]
+    if (file) handleImportBackup(file)
+    e.target.value = ''
+  }
 
   useEffect(() => {
     if (isInitialMount.current) {
@@ -297,6 +308,66 @@ function App() {
     })
   }
 
+  function handleExportBackup() {
+    const payload = {
+      app: 'credit-card-statement-viewer',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      statements: savedStatements,
+      receiptBank,
+    }
+    const blob = new Blob([JSON.stringify(payload)], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `cc-statement-backup-${new Date().toISOString().slice(0, 10)}.json`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
+
+  async function handleImportBackup(file) {
+    if (!file) return
+    try {
+      const text = await file.text()
+      const data = JSON.parse(text)
+      const hasStatements = Array.isArray(data?.statements)
+      const hasBank = data?.receiptBank && typeof data.receiptBank === 'object'
+      if (!hasStatements && !hasBank) {
+        window.alert('That file is not a valid backup export.')
+        return
+      }
+
+      if (hasStatements) {
+        setSavedStatements((prev) => {
+          const byId = new Map(prev.map((s) => [s.id, s]))
+          for (const s of data.statements) byId.set(s.id, s)
+          return [...byId.values()]
+        })
+      }
+      if (hasBank) {
+        setReceiptBank((prev) => {
+          const next = { ...prev }
+          for (const [month, arr] of Object.entries(data.receiptBank)) {
+            if (!Array.isArray(arr)) continue
+            const existing = next[month] || []
+            const byId = new Map(existing.map((r) => [r.id, r]))
+            for (const r of arr) byId.set(r.id, r)
+            next[month] = [...byId.values()]
+          }
+          return next
+        })
+      }
+
+      const count = hasStatements ? data.statements.length : 0
+      window.alert(`Backup imported. Restored ${count} statement${count !== 1 ? 's' : ''} and their receipts.`)
+    } catch (err) {
+      console.error('Backup import error:', err)
+      window.alert('Failed to import backup — the file may be corrupted or not a valid backup.')
+    }
+  }
+
   function handleRematchReceipts() {
     const prev = currentStatementRef.current
     if (!prev) return
@@ -366,6 +437,14 @@ function App() {
         </p>
       </header>
 
+      <input
+        ref={importInputRef}
+        type="file"
+        accept="application/json,.json"
+        onChange={handleImportInputChange}
+        style={{ display: 'none' }}
+      />
+
       <main className="app-main">
         {view === 'home' && (
           <>
@@ -378,12 +457,17 @@ function App() {
                 onUploadNew={handleShowUpload}
                 onOpenReceiptBank={handleShowReceiptBank}
                 receiptBankCount={receiptBankCount}
+                onExportBackup={handleExportBackup}
+                onImportBackup={triggerImport}
               />
             ) : (
               <div className="upload-section">
                 <div className="home-actions">
                   <button className="receipt-bank-link" onClick={handleShowReceiptBank}>
                     Receipt Bank{receiptBankCount > 0 ? ` (${receiptBankCount})` : ''}
+                  </button>
+                  <button className="backup-btn" onClick={triggerImport}>
+                    Import backup
                   </button>
                 </div>
                 <FileUpload

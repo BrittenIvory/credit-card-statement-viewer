@@ -91,7 +91,7 @@ function StatementCard({ statement: s, onSelect, onDelete, onRename, formatDate,
   )
 }
 
-export default function SavedStatements({ statements, onSelect, onDelete, onRename, onUploadNew, onOpenReceiptBank, receiptBankCount }) {
+export default function SavedStatements({ statements, onSelect, onDelete, onRename, onUploadNew, onOpenReceiptBank, receiptBankCount, onExportBackup, onImportBackup }) {
   function formatDate(isoStr) {
     return new Date(isoStr).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -107,6 +107,12 @@ export default function SavedStatements({ statements, onSelect, onDelete, onRena
       <div className="saved-statements__header">
         <h2 className="saved-statements__title">Saved Statements</h2>
         <div className="saved-statements__header-actions">
+          <button className="backup-btn" onClick={onExportBackup} title="Download a backup file of all statements and receipts">
+            Export backup
+          </button>
+          <button className="backup-btn" onClick={onImportBackup} title="Restore statements and receipts from a backup file">
+            Import backup
+          </button>
           <button className="receipt-bank-btn" onClick={onOpenReceiptBank}>
             Receipt Bank{receiptBankCount > 0 ? ` (${receiptBankCount})` : ''}
           </button>
