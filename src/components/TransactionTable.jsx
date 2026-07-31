@@ -1,12 +1,15 @@
-import { useState, useMemo } from 'react'
+import React, { useState, useMemo } from 'react'
+import { COMPANIES } from '../utils/companies'
 import './TransactionTable.css'
 
 const SORT_DIRECTIONS = { ASC: 'asc', DESC: 'desc' }
 
-export default function TransactionTable({ transactions }) {
+export default function TransactionTable({ transactions, verifiedIds, onToggleVerified, onBatchToggleVerified, companyAssignments, onAssignCompany, receiptImages }) {
+  const [expandedReceipt, setExpandedReceipt] = useState(null)
   const [nameFilter, setNameFilter] = useState('')
   const [minAmount, setMinAmount] = useState('')
   const [maxAmount, setMaxAmount] = useState('')
+  const [companyFilter, setCompanyFilter] = useState('')
   const [sortField, setSortField] = useState(null)
   const [sortDirection, setSortDirection] = useState(SORT_DIRECTIONS.ASC)
 
@@ -34,6 +37,14 @@ export default function TransactionTable({ transactions }) {
       }
     }
 
+    if (companyFilter) {
+      if (companyFilter === '__none__') {
+        result = result.filter((t) => !companyAssignments[t.id])
+      } else {
+        result = result.filter((t) => companyAssignments[t.id] === companyFilter)
+      }
+    }
+
     if (sortField) {
       result.sort((a, b) => {
         let cmp = 0
@@ -49,7 +60,7 @@ export default function TransactionTable({ transactions }) {
     }
 
     return result
-  }, [transactions, nameFilter, minAmount, maxAmount, sortField, sortDirection])
+  }, [transactions, nameFilter, minAmount, maxAmount, companyFilter, companyAssignments, sortField, sortDirection])
 
   function handleSort(field) {
     if (sortField === field) {
@@ -73,7 +84,7 @@ export default function TransactionTable({ transactions }) {
       style: 'currency',
       currency: 'USD',
     })
-    if (amount < 0) return `−${formatted}`
+    if (amount < 0) return `\u2212${formatted}`
     return formatted
   }
 
@@ -81,11 +92,51 @@ export default function TransactionTable({ transactions }) {
     setNameFilter('')
     setMinAmount('')
     setMaxAmount('')
+    setCompanyFilter('')
   }
 
-  const hasActiveFilters = nameFilter || minAmount || maxAmount
+  const hasActiveFilters = nameFilter || minAmount || maxAmount || companyFilter
+
+  function csvEscape(value) {
+    const str = value == null ? '' : String(value)
+    if (/[",\n]/.test(str)) {
+      return `"${str.replace(/"/g, '""')}"`
+    }
+    return str
+  }
+
+  function handleExport() {
+    const headers = ['Date', 'Description', 'Amount', 'Company', 'Verified']
+    const rows = filtered.map((t) => [
+      t.date,
+      t.description,
+      t.amount,
+      companyAssignments[t.id] || '',
+      verifiedIds.has(t.id) ? 'Yes' : 'No',
+    ])
+    const csv = [headers, ...rows]
+      .map((row) => row.map(csvEscape).join(','))
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `transactions-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    URL.revokeObjectURL(url)
+  }
 
   const totalAmount = filtered.reduce((sum, t) => sum + t.amount, 0)
+
+  const verifiedCount = transactions.filter((t) => verifiedIds.has(t.id)).length
+  const allFilteredVerified = filtered.length > 0 && filtered.every((t) => verifiedIds.has(t.id))
+
+  function handleToggleAllFiltered() {
+    const ids = filtered.map((t) => t.id)
+    onBatchToggleVerified(ids, !allFilteredVerified)
+  }
 
   return (
     <div className="transaction-table">
@@ -130,11 +181,31 @@ export default function TransactionTable({ transactions }) {
               />
             </div>
           </div>
+          <div className="filter-group">
+            <label className="filter-label" htmlFor="companyFilter">
+              Company
+            </label>
+            <select
+              id="companyFilter"
+              value={companyFilter}
+              onChange={(e) => setCompanyFilter(e.target.value)}
+              className="filter-input"
+            >
+              <option value="">All companies</option>
+              <option value="__none__">Unassigned</option>
+              {COMPANIES.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
           {hasActiveFilters && (
             <button className="clear-btn" onClick={clearFilters}>
               Clear filters
             </button>
           )}
+          <button className="export-btn" onClick={handleExport} disabled={filtered.length === 0}>
+            Export CSV
+          </button>
         </div>
       </div>
 
@@ -142,15 +213,43 @@ export default function TransactionTable({ transactions }) {
         <span>
           Showing {filtered.length} of {transactions.length} transactions
         </span>
-        <span className={`table-info__total ${totalAmount < 0 ? 'amount--credit' : ''}`}>
-          Total: {formatAmount(totalAmount)}
-        </span>
+        <div className="table-info__right">
+          <span className="verification-progress">
+            <span
+              className={`verification-badge ${
+                verifiedCount === transactions.length
+                  ? 'verification-badge--done'
+                  : ''
+              }`}
+            >
+              {verifiedCount}/{transactions.length} verified
+            </span>
+          </span>
+          <span className={`table-info__total ${totalAmount < 0 ? 'amount--credit' : ''}`}>
+            Total: {formatAmount(totalAmount)}
+          </span>
+        </div>
       </div>
+
+      {verifiedCount === transactions.length && transactions.length > 0 && (
+        <div className="all-verified-banner">
+          All transactions have been verified!
+        </div>
+      )}
 
       <div className="table-wrapper">
         <table>
           <thead>
             <tr>
+              <th className="th-verified">
+                <input
+                  type="checkbox"
+                  className="verify-checkbox verify-checkbox--header"
+                  checked={allFilteredVerified && filtered.length > 0}
+                  onChange={handleToggleAllFiltered}
+                  title="Toggle all visible"
+                />
+              </th>
               <th
                 className="sortable"
                 onClick={() => handleSort('date')}
@@ -169,29 +268,82 @@ export default function TransactionTable({ transactions }) {
               >
                 Amount{getSortIndicator('amount')}
               </th>
+              <th className="th-company">Company</th>
+              <th className="th-receipt">Receipt</th>
             </tr>
           </thead>
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan="3" className="no-results">
+                <td colSpan="6" className="no-results">
                   No transactions match your filters
                 </td>
               </tr>
             ) : (
-              filtered.map((t) => (
-                <tr key={t.id}>
-                  <td className="td-date">{t.date}</td>
-                  <td className="td-description">{t.description}</td>
-                  <td
-                    className={`td-amount ${
-                      t.amount < 0 ? 'amount--credit' : 'amount--debit'
-                    }`}
+              filtered.map((t) => {
+                const isVerified = verifiedIds.has(t.id)
+                return (
+                  <React.Fragment key={t.id}>
+                  <tr
+                    className={isVerified ? 'row--verified' : ''}
+                    onClick={() => onToggleVerified(t.id)}
                   >
-                    {formatAmount(t.amount)}
-                  </td>
-                </tr>
-              ))
+                    <td className="td-verified">
+                      <input
+                        type="checkbox"
+                        className="verify-checkbox"
+                        checked={isVerified}
+                        onChange={() => onToggleVerified(t.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                    </td>
+                    <td className="td-date">{t.date}</td>
+                    <td className="td-description">{t.description}</td>
+                    <td
+                      className={`td-amount ${
+                        t.amount < 0 ? 'amount--credit' : 'amount--debit'
+                      }`}
+                    >
+                      {formatAmount(t.amount)}
+                    </td>
+                    <td className="td-company" onClick={(e) => e.stopPropagation()}>
+                      <select
+                        className={`company-select ${companyAssignments[t.id] ? 'company-select--assigned' : ''}`}
+                        value={companyAssignments[t.id] || ''}
+                        onChange={(e) => onAssignCompany(t.id, e.target.value)}
+                      >
+                        <option value="">Select...</option>
+                        {COMPANIES.map((c) => (
+                          <option key={c} value={c}>{c}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="td-receipt" onClick={(e) => e.stopPropagation()}>
+                      {receiptImages[t.id] ? (
+                        <img
+                          src={receiptImages[t.id]}
+                          alt="Receipt"
+                          className="receipt-thumbnail"
+                          onClick={() => setExpandedReceipt(expandedReceipt === t.id ? null : t.id)}
+                        />
+                      ) : (
+                        <span className="receipt-none">&mdash;</span>
+                      )}
+                    </td>
+                  </tr>
+                  {expandedReceipt === t.id && receiptImages[t.id] && (
+                    <tr className="receipt-expanded-row">
+                      <td colSpan="6">
+                        <div className="receipt-expanded">
+                          <img src={receiptImages[t.id]} alt="Receipt" className="receipt-full" />
+                          <button className="receipt-close" onClick={() => setExpandedReceipt(null)}>Close</button>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </React.Fragment>
+                )
+              })
             )}
           </tbody>
         </table>
